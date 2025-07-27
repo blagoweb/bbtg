@@ -10,12 +10,12 @@ import (
     _ "github.com/lib/pq"
     "github.com/spf13/viper"
 
-    "your_project/internal/config"
-    "your_project/internal/db"
-    "your_project/internal/payment"
-    r2storage "your_project/internal/storage/r2"
-    "your_project/internal/telegram"
-    "your_project/internal/handler"
+    "blagoweb/internal/config"
+    "blagoweb/internal/db"
+    "blagoweb/internal/payment"
+    r2storage "blagoweb/internal/storage/r2"
+    "blagoweb/internal/telegram"
+    "blagoweb/internal/handler"
 )
 
 func main() {
@@ -50,18 +50,28 @@ func main() {
 
     // 6. Настроить Gin
     router := gin.Default()
+    // Вебхук оплаты YooKassa
     router.POST("/api/payment/webhook", payment.WebhookHandler(database, cfg.YookassaSecret))
+
+    // Авторизация через Telegram WebApp
     router.POST("/api/auth/login", handler.HandleLogin(cfg.TelegramToken, cfg.JWTSecret))
 
+    // Группа защищённых API-маршрутов
     api := router.Group("/api")
     api.Use(handler.AuthMiddleware(cfg.JWTSecret))
     {
-        handler.RegisterLandingRoutes(api, database, r2client)
-        handler.RegisterLinkRoutes   (api, database)
-        handler.RegisterLeadRoutes   (api, database, tbot)
-        handler.RegisterAnalyticsRoutes(api, database)
-        handler.RegisterPaymentRoutes(api, database)
-        handler.RegisterSubscriptionRoutes(api, database, cfg)
+        // лендинги (CRUD + загрузка аватарки)
+        handler.RegisterLandingRoutes       (api, database, r2client)
+        // ссылки/кнопки
+        handler.RegisterLinkRoutes          (api, database)
+        // заявки (лиды)
+        handler.RegisterLeadRoutes          (api, database, tbot)
+        // аналитика (просмотры, клики)
+        handler.RegisterAnalyticsRoutes     (api, database)
+        // списки платежей
+        handler.RegisterPaymentRoutes       (api, database)
+        // подписки (рекуррентные платежи)
+        handler.RegisterSubscriptionRoutes  (api, database, cfg)
     }
 
     // 7. Запустить HTTP-сервер
