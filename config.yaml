@@ -1,0 +1,20 @@
+# Database Configuration
+DB_DSN: "${DB_DSN}"
+
+# Telegram Bot Configuration
+TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN}"
+
+# JWT Configuration
+JWT_SECRET: "your_jwt_secret_key_here"
+
+# Application Configuration
+APP_PORT: "8080"
+
+# YooKassa Configuration (optional for payment webhooks)
+YOOKASSA_SECRET: "your_yookassa_secret_here"
+
+# Cloudflare R2 Configuration (optional for file storage)
+R2_ENDPOINT: "https://your-account-id.r2.cloudflarestorage.com"
+R2_ACCESS_KEY: "your_r2_access_key_here"
+R2_SECRET_KEY: "your_r2_secret_key_here"
+R2_BUCKET: "your_r2_bucket_name_here" 

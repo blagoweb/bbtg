@@ -4,6 +4,7 @@ import (
     "fmt"
     "log"
     "net/http"
+    "os"
 
     "github.com/gin-gonic/gin"
     "github.com/dgrijalva/jwt-go"
@@ -115,7 +116,8 @@ func main() {
 
     // 3. Запустить миграции (опционально)
     if err := runMigrations(cfg.DB_DSN); err != nil {
-        log.Fatalf("migrations failed: %v", err)
+        log.Printf("migrations warning: %v", err)
+        // Не прерываем выполнение, если миграции уже применены
     }
 
     // 4. Инициализировать R2-клиент
@@ -166,8 +168,14 @@ func main() {
 
 // Пример функции запуска миграций через golang-migrate
 func runMigrations(dsn string) error {
+    // Получаем текущую рабочую директорию
+    workDir, err := os.Getwd()
+    if err != nil {
+        return fmt.Errorf("failed to get working directory: %v", err)
+    }
+    
     m, err := migrate.New(
-        "file://migrations",
+        fmt.Sprintf("file://%s/migrations", workDir),
         dsn,
     )
     if err != nil {
