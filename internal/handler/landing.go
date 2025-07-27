@@ -1,6 +1,7 @@
 package handler
 
 import (
+    "fmt"
     "net/http"
     "strconv"
     "time"
@@ -39,7 +40,11 @@ func listLandings(db *sqlx.DB) gin.HandlerFunc {
             c.JSON(http.StatusUnauthorized, gin.H{"error": "user_id not found"})
             return
         }
-        uid := int(uidI.(float64))
+        uid, err := strconv.Atoi(fmt.Sprint(uidI))
+        if err != nil {
+            c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid user_id"})
+            return
+        }
 
         var items []Landing
         if err := db.Select(&items, "SELECT * FROM landings WHERE user_id=$1 ORDER BY created_at DESC", uid); err != nil {
@@ -63,7 +68,11 @@ func createLanding(db *sqlx.DB) gin.HandlerFunc {
             c.JSON(http.StatusUnauthorized, gin.H{"error": "user_id not found"})
             return
         }
-        uid := int(uidI.(float64))
+        uid, err := strconv.Atoi(fmt.Sprint(uidI))
+        if err != nil {
+            c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid user_id"})
+            return
+        }
 
         var req request
         if err := c.ShouldBindJSON(&req); err != nil {

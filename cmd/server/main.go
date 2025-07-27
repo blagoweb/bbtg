@@ -20,6 +20,36 @@ import (
     "github.com/blagoweb/bbtg/internal/telegram"
 )
 
+// CORS middleware для обработки cross-origin запросов
+func CORSMiddleware(allowedOrigins []string) gin.HandlerFunc {
+    return func(c *gin.Context) {
+        origin := c.Request.Header.Get("Origin")
+        allowed := false
+        
+        for _, allowedOrigin := range allowedOrigins {
+            if origin == allowedOrigin {
+                allowed = true
+                break
+            }
+        }
+        
+        if allowed {
+            c.Header("Access-Control-Allow-Origin", origin)
+        }
+        
+        c.Header("Access-Control-Allow-Credentials", "true")
+        c.Header("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
+        c.Header("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
+
+        if c.Request.Method == "OPTIONS" {
+            c.AbortWithStatus(204)
+            return
+        }
+
+        c.Next()
+    }
+}
+
 // HandleLogin обрабатывает авторизацию через Telegram WebApp
 func HandleLogin(telegramToken, jwtSecret string) gin.HandlerFunc {
     return func(c *gin.Context) {
@@ -82,6 +112,7 @@ func AuthMiddleware(jwtSecret string) gin.HandlerFunc {
         // Извлекаем user_id из токена
         if claims, ok := token.Claims.(jwt.MapClaims); ok {
             if userID, exists := claims["user_id"]; exists {
+                // Преобразуем user_id в строку для консистентности
                 c.Set("user_id", fmt.Sprint(userID))
                 c.Next()
                 return
@@ -134,11 +165,20 @@ func main() {
 
     // 6. Настроить Gin
     router := gin.Default()
+    
+    // Применяем CORS middleware ко всем маршрутам
+    router.Use(CORSMiddleware(cfg.CORSOrigins))
+    
     // Вебхук оплаты YooKassa
     router.POST("/api/payment/webhook", WebhookHandler(database, cfg.YookassaSecret))
 
     // Авторизация через Telegram WebApp
     router.POST("/api/auth/login", HandleLogin(cfg.TelegramToken, cfg.JWTSecret))
+
+    // Health check endpoint для Railway
+    router.GET("/health", func(c *gin.Context) {
+        c.JSON(http.StatusOK, gin.H{"status": "ok"})
+    })
 
     // Группа защищённых API-маршрутов
     api := router.Group("/api")

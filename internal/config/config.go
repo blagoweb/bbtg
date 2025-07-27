@@ -3,20 +3,22 @@ package config
 
 import (
     "fmt"
+    "strings"
     "github.com/spf13/viper"
 )
 
 // Config хранит настройки приложения
 type Config struct {
-    AppPort        string // порт, на котором запускается сервер
-    DB_DSN         string // строка подключения к PostgreSQL
-    TelegramToken  string // токен Telegram-бота
-    YookassaSecret string // секрет для верификации вебхуков YooKassa
-    R2Endpoint     string // endpoint Cloudflare R2
-    R2AccessKey    string // ключ доступа R2
-    R2SecretKey    string // секретный ключ R2
-    R2Bucket       string // имя бакета R2
-    JWTSecret      string // секрет для подписи JWT
+    AppPort        string   // порт, на котором запускается сервер
+    DB_DSN         string   // строка подключения к PostgreSQL
+    TelegramToken  string   // токен Telegram-бота
+    YookassaSecret string   // секрет для верификации вебхуков YooKassa
+    R2Endpoint     string   // endpoint Cloudflare R2
+    R2AccessKey    string   // ключ доступа R2
+    R2SecretKey    string   // секретный ключ R2
+    R2Bucket       string   // имя бакета R2
+    JWTSecret      string   // секрет для подписи JWT
+    CORSOrigins    []string // разрешённые CORS домены
 }
 
 // Load загружает конфигурацию из переменных окружения и (опционально) файла config.yaml
@@ -29,6 +31,23 @@ func Load() (*Config, error) {
     viper.AddConfigPath(".")
     _ = viper.ReadInConfig() // игнорируем ошибку, если файла нет
 
+    // Парсим CORS origins из переменной окружения (разделённые запятыми)
+    corsOriginsStr := viper.GetString("CORS_ORIGINS")
+    var corsOrigins []string
+    if corsOriginsStr != "" {
+        corsOrigins = strings.Split(corsOriginsStr, ",")
+        // Убираем пробелы
+        for i, origin := range corsOrigins {
+            corsOrigins[i] = strings.TrimSpace(origin)
+        }
+    } else {
+        corsOrigins = []string{
+            "http://localhost:5173",
+            "http://188.233.93.255",
+            "https://188.233.93.255",
+        }
+    }
+
     cfg := &Config{
         AppPort:        viper.GetString("APP_PORT"),
         DB_DSN:         viper.GetString("DB_DSN"),
@@ -39,6 +58,7 @@ func Load() (*Config, error) {
         R2SecretKey:    viper.GetString("R2_SECRET_KEY"),
         R2Bucket:       viper.GetString("R2_BUCKET"),
         JWTSecret:      viper.GetString("JWT_SECRET"),
+        CORSOrigins:    corsOrigins,
     }
 
     // проверка обязательных параметров
