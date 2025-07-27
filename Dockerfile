@@ -8,7 +8,7 @@ RUN go mod download
 
 # Копируем весь проект и собираем бинарь server
 COPY . .
-RUN go build -o server ./cmd/server
+RUN go build --no-cache -o server ./cmd/server
 
 # === Релизный образ ===
 FROM alpine:latest
