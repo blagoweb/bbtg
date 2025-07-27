@@ -6,6 +6,7 @@ import (
     "net/http"
     "os"
 
+    "github.com/gin-contrib/cors"
     "github.com/gin-gonic/gin"
     "github.com/dgrijalva/jwt-go"
     "github.com/golang-migrate/migrate/v4"
@@ -166,9 +167,38 @@ func main() {
 
     // 6. Настроить Gin
     router := gin.Default()
-    
-    // Применяем CORS middleware ко всем маршрутам
-    router.Use(CORSMiddleware(cfg.CORSOrigins))
+
+    // --- автоматически обрабатывает OPTIONS и проставляет все CORS-заголовки ---
+    router.Use(cors.New(cors.Config{
+        AllowOrigins:     cfg.CORSOrigins,             // из вашего config.Load()
+        AllowMethods:     []string{"GET","POST","PUT","DELETE","OPTIONS"},
+        AllowHeaders:     []string{"Origin","Content-Type","Authorization"},
+        ExposeHeaders:    []string{"Content-Length"},
+        AllowCredentials: true,
+        MaxAge:           12 * time.Hour,
+    }))
+
+    // простаиваем health-check, auth и остальные маршруты
+    router.GET("/health", func(c *gin.Context) {
+        c.JSON(http.StatusOK, gin.H{"status":"ok"})
+    })
+    router.POST("/api/auth/login", handler.HandleLogin(cfg.TelegramToken, cfg.JWTSecret))
+    router.POST("/api/payment/webhook", payment.WebhookHandler(database, cfg.YookassaSecret))
+
+    api := router.Group("/api")
+    api.Use(handler.AuthMiddleware(cfg.JWTSecret))
+    {
+        handler.RegisterLandingRoutes      (api, database, r2client)
+        handler.RegisterLinkRoutes         (api, database)
+        handler.RegisterLeadRoutes         (api, database, tbot)
+        handler.RegisterAnalyticsRoutes    (api, database)
+        handler.RegisterPaymentRoutes      (api, database)
+        handler.RegisterSubscriptionRoutes (api, database, cfg)
+    }
+
+    addr := fmt.Sprintf(":%s", cfg.AppPort)
+    log.Printf("Server running on %s", addr)
+    log.Fatal(router.Run(addr))
     
     // Вебхук оплаты YooKassa
     router.POST("/api/payment/webhook", WebhookHandler(database, cfg.YookassaSecret))
