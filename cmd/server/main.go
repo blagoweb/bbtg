@@ -5,6 +5,7 @@ import (
     "log"
     "net/http"
     "os"
+    "time"
 
     "github.com/gin-contrib/cors"
     "github.com/gin-gonic/gin"
@@ -178,38 +179,16 @@ func main() {
         MaxAge:           12 * time.Hour,
     }))
 
-    // простаиваем health-check, auth и остальные маршруты
-    router.GET("/health", func(c *gin.Context) {
-        c.JSON(http.StatusOK, gin.H{"status":"ok"})
-    })
-    router.POST("/api/auth/login", handler.HandleLogin(cfg.TelegramToken, cfg.JWTSecret))
-    router.POST("/api/payment/webhook", payment.WebhookHandler(database, cfg.YookassaSecret))
-
-    api := router.Group("/api")
-    api.Use(handler.AuthMiddleware(cfg.JWTSecret))
-    {
-        handler.RegisterLandingRoutes      (api, database, r2client)
-        handler.RegisterLinkRoutes         (api, database)
-        handler.RegisterLeadRoutes         (api, database, tbot)
-        handler.RegisterAnalyticsRoutes    (api, database)
-        handler.RegisterPaymentRoutes      (api, database)
-        handler.RegisterSubscriptionRoutes (api, database, cfg)
-    }
-
-    addr := fmt.Sprintf(":%s", cfg.AppPort)
-    log.Printf("Server running on %s", addr)
-    log.Fatal(router.Run(addr))
-    
-    // Вебхук оплаты YooKassa
-    router.POST("/api/payment/webhook", WebhookHandler(database, cfg.YookassaSecret))
-
-    // Авторизация через Telegram WebApp
-    router.POST("/api/auth/login", HandleLogin(cfg.TelegramToken, cfg.JWTSecret))
-
     // Health check endpoint для Railway
     router.GET("/health", func(c *gin.Context) {
         c.JSON(http.StatusOK, gin.H{"status": "ok"})
     })
+
+    // Авторизация через Telegram WebApp
+    router.POST("/api/auth/login", HandleLogin(cfg.TelegramToken, cfg.JWTSecret))
+
+    // Вебхук оплаты YooKassa
+    router.POST("/api/payment/webhook", WebhookHandler(database, cfg.YookassaSecret))
 
     // Группа защищённых API-маршрутов
     api := router.Group("/api")
