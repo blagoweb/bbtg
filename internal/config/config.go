@@ -49,7 +49,7 @@ func Load() (*Config, error) {
     }
 
     cfg := &Config{
-        AppPort:        viper.GetString("APP_PORT"),
+        AppPort:        "8080",
         DB_DSN:         viper.GetString("DB_DSN"),
         TelegramToken:  viper.GetString("TELEGRAM_BOT_TOKEN"),
         YookassaSecret: viper.GetString("YOOKASSA_SECRET"),
