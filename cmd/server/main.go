@@ -18,7 +18,6 @@ import (
     "github.com/blagoweb/bbtg/internal/config"
     "github.com/blagoweb/bbtg/internal/db"
     "github.com/blagoweb/bbtg/internal/handler"
-    "github.com/blagoweb/bbtg/internal/payment"
     r2storage "github.com/blagoweb/bbtg/internal/storage/r2"
     "github.com/blagoweb/bbtg/internal/telegram"
 )
@@ -169,7 +168,6 @@ func main() {
         c.JSON(http.StatusOK, gin.H{"status": "ok", "timestamp": time.Now().Unix()})
     })
     router.POST("/api/auth/login",      HandleLogin(cfg.TelegramToken, cfg.JWTSecret))
-    router.POST("/api/payment/webhook", payment.WebhookHandler(database, cfg.YookassaSecret))
 
     api := router.Group("/api")
     api.Use(AuthMiddleware(cfg.JWTSecret))
