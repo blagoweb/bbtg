@@ -7,7 +7,7 @@ import (
 
     "github.com/gin-gonic/gin"
     "github.com/jmoiron/sqlx"
-    "tma/internal/telegram"
+    "github.com/blagoweb/bbtg/internal/telegram"
 )
 
 // Lead представляет заявку пользователя

@@ -1,14 +1,13 @@
 package handler
 
 import (
-    "fmt"
     "net/http"
     "strconv"
     "time"
 
     "github.com/gin-gonic/gin"
     "github.com/jmoiron/sqlx"
-    "tma/internal/storage/r2"
+    "github.com/blagoweb/bbtg/internal/storage/r2"
 )
 
 // Landing представляет лендинг-страницу пользователя

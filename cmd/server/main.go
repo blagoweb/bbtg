@@ -10,12 +10,11 @@ import (
     _ "github.com/lib/pq"
     "github.com/spf13/viper"
 
-    "blagoweb/internal/config"
-    "blagoweb/internal/db"
-    "blagoweb/internal/payment"
-    r2storage "blagoweb/internal/storage/r2"
-    "blagoweb/internal/telegram"
-    "blagoweb/internal/handler"
+    "github.com/blagoweb/bbtg/internal/config"
+    "github.com/blagoweb/bbtg/internal/db"
+    "github.com/blagoweb/bbtg/internal/handler"
+    r2storage "github.com/blagoweb/bbtg/internal/storage/r2"
+    "github.com/blagoweb/bbtg/internal/telegram"
 )
 
 func main() {

@@ -11,7 +11,7 @@ import (
 
     "github.com/gin-gonic/gin"
     "github.com/jmoiron/sqlx"
-    "tma/internal/config"
+    "github.com/blagoweb/bbtg/internal/config"
 )
 
 // Subscription модель рекуррентного платежа
