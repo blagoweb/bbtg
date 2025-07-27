@@ -1,5 +1,5 @@
 # === Сборка ===
-FROM golang:1.20-alpine AS builder
+FROM golang:1.24-alpine AS builder
 WORKDIR /app
 
 # Копируем модули и скачиваем зависимости
