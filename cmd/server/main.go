@@ -171,7 +171,7 @@ func main() {
 
     // --- автоматически обрабатывает OPTIONS и проставляет все CORS-заголовки ---
     router.Use(cors.New(cors.Config{
-        AllowOrigins:     cfg.CORSOrigins,             // из вашего config.Load()
+        AllowOrigins:     "http://localhost:5173,https://my-frontend-domain.com",             // из вашего config.Load()
         AllowMethods:     []string{"GET","POST","PUT","DELETE","OPTIONS"},
         AllowHeaders:     []string{"Origin","Content-Type","Authorization"},
         ExposeHeaders:    []string{"Content-Length"},
