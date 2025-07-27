@@ -135,7 +135,7 @@ func main() {
     }
 
     // 4. R2
-    var r2client interface{}
+    var r2client *r2storage.Client
     if cfg.R2Endpoint != "" && cfg.R2AccessKey != "" && cfg.R2SecretKey != "" && cfg.R2Bucket != "" {
         r2client, err = r2storage.NewClient(cfg.R2Endpoint, cfg.R2AccessKey, cfg.R2SecretKey, cfg.R2Bucket)
         if err != nil {
@@ -148,7 +148,7 @@ func main() {
     }
 
     // 5. Telegram Bot
-    var tbot interface{}
+    var tbot *telegram.Bot
     if cfg.TelegramToken != "" {
         tbot, err = telegram.NewBot(cfg.TelegramToken)
         if err != nil {
