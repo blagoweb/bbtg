@@ -1,6 +1,8 @@
 module github.com/blagoweb/bbtg
 
-go 1.24
+go 1.23.0
+
+toolchain go1.24.4
 
 require (
 	github.com/aws/aws-sdk-go v1.55.7
