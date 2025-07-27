@@ -3,6 +3,7 @@ package config
 
 import (
     "fmt"
+    "log"
     "strings"
     "github.com/spf13/viper"
 )
@@ -62,10 +63,10 @@ func Load() (*Config, error) {
 
     // проверка обязательных параметров
     if cfg.DB_DSN == "" {
-        return nil, fmt.Errorf("DB_DSN is required")
+        log.Printf("Warning: DB_DSN is not set")
     }
     if cfg.TelegramToken == "" {
-        return nil, fmt.Errorf("TELEGRAM_BOT_TOKEN is required")
+        log.Printf("Warning: TELEGRAM_BOT_TOKEN is not set")
     }
     if cfg.JWTSecret == "" {
         return nil, fmt.Errorf("JWT_SECRET is required")

@@ -108,13 +108,23 @@ func main() {
     // 1. Конфиг
     cfg, err := config.Load()
     if err != nil {
-        log.Fatalf("config load error: %v", err)
+        log.Printf("config load error: %v", err)
+        // Устанавливаем значения по умолчанию для критических параметров
+        cfg = &config.Config{
+            AppPort:       "8080",
+            DB_DSN:        "",
+            TelegramToken: "",
+            JWTSecret:     "default-secret",
+            CORSOrigins:   []string{"*"},
+        }
     }
 
     // 2. База
     database, err := db.Connect(cfg.DB_DSN)
     if err != nil {
-        log.Fatalf("db connect error: %v", err)
+        log.Printf("db connect error: %v", err)
+        // Не прерываем выполнение, если БД недоступна
+        database = nil
     }
 
     // 3. Миграции (опционально)
@@ -125,13 +135,15 @@ func main() {
     // 4. R2
     r2client, err := r2storage.NewClient(cfg.R2Endpoint, cfg.R2AccessKey, cfg.R2SecretKey, cfg.R2Bucket)
     if err != nil {
-        log.Fatalf("r2 init error: %v", err)
+        log.Printf("r2 init error: %v", err)
+        r2client = nil
     }
 
     // 5. Telegram Bot
     tbot, err := telegram.NewBot(cfg.TelegramToken)
     if err != nil {
-        log.Fatalf("telegram bot init error: %v", err)
+        log.Printf("telegram bot init error: %v", err)
+        tbot = nil
     }
 
     // 6. Gin + CORS
@@ -147,7 +159,7 @@ func main() {
 
     // 7. Routes
     router.GET("/health", func(c *gin.Context) {
-        c.JSON(http.StatusOK, gin.H{"status": "ok"})
+        c.JSON(http.StatusOK, gin.H{"status": "ok", "timestamp": time.Now().Unix()})
     })
     router.POST("/api/auth/login",      HandleLogin(cfg.TelegramToken, cfg.JWTSecret))
     router.POST("/api/payment/webhook", WebhookHandler(database, cfg.YookassaSecret))
