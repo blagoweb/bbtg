@@ -22,6 +22,7 @@ import (
 
 // CORS middleware для обработки cross-origin запросов
 func CORSMiddleware(allowedOrigins []string) gin.HandlerFunc {
+    fmt.Println(allowedOrigins)
     return func(c *gin.Context) {
         origin := c.Request.Header.Get("Origin")
         allowed := false
