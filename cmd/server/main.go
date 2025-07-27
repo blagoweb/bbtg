@@ -169,7 +169,7 @@ func main() {
         c.JSON(http.StatusOK, gin.H{"status": "ok", "timestamp": time.Now().Unix()})
     })
     router.POST("/api/auth/login",      HandleLogin(cfg.TelegramToken, cfg.JWTSecret))
-    router.POST("/api/payment/webhook", WebhookHandler(database, cfg.YookassaSecret))
+    router.POST("/api/payment/webhook", payment.WebhookHandler(database, cfg.YookassaSecret))
 
     api := router.Group("/api")
     api.Use(AuthMiddleware(cfg.JWTSecret))
