@@ -128,21 +128,35 @@ func main() {
     }
 
     // 3. Миграции (опционально)
-    if err := runMigrations(cfg.DB_DSN); err != nil {
-        log.Printf("migrations warning: %v", err)
+    if cfg.DB_DSN != "" {
+        if err := runMigrations(cfg.DB_DSN); err != nil {
+            log.Printf("migrations warning: %v", err)
+        }
     }
 
     // 4. R2
-    r2client, err := r2storage.NewClient(cfg.R2Endpoint, cfg.R2AccessKey, cfg.R2SecretKey, cfg.R2Bucket)
-    if err != nil {
-        log.Printf("r2 init error: %v", err)
+    var r2client interface{}
+    if cfg.R2Endpoint != "" && cfg.R2AccessKey != "" && cfg.R2SecretKey != "" && cfg.R2Bucket != "" {
+        r2client, err = r2storage.NewClient(cfg.R2Endpoint, cfg.R2AccessKey, cfg.R2SecretKey, cfg.R2Bucket)
+        if err != nil {
+            log.Printf("r2 init error: %v", err)
+            r2client = nil
+        }
+    } else {
+        log.Printf("R2 credentials not provided, skipping R2 initialization")
         r2client = nil
     }
 
     // 5. Telegram Bot
-    tbot, err := telegram.NewBot(cfg.TelegramToken)
-    if err != nil {
-        log.Printf("telegram bot init error: %v", err)
+    var tbot interface{}
+    if cfg.TelegramToken != "" {
+        tbot, err = telegram.NewBot(cfg.TelegramToken)
+        if err != nil {
+            log.Printf("telegram bot init error: %v", err)
+            tbot = nil
+        }
+    } else {
+        log.Printf("Telegram token not provided, skipping Telegram bot initialization")
         tbot = nil
     }
 
