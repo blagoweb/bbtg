@@ -17,6 +17,3 @@ RUN apk add --no-cache ca-certificates
 WORKDIR /app
 # Копируем из builder собранный бинарь
 COPY --from=builder /app/server .
-
-# Указываем команду по умолчанию
-CMD ["./server"]
