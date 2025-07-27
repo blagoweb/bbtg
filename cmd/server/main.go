@@ -18,6 +18,7 @@ import (
     "github.com/blagoweb/bbtg/internal/config"
     "github.com/blagoweb/bbtg/internal/db"
     "github.com/blagoweb/bbtg/internal/handler"
+    "github.com/blagoweb/bbtg/internal/payment"
     r2storage "github.com/blagoweb/bbtg/internal/storage/r2"
     "github.com/blagoweb/bbtg/internal/telegram"
 )
