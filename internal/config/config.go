@@ -43,8 +43,7 @@ func Load() (*Config, error) {
     } else {
         corsOrigins = []string{
             "http://localhost:5173",
-            "http://188.233.93.255",
-            "https://188.233.93.255",
+            "https://tma-alpha.vercel.app",
         }
     }
 
