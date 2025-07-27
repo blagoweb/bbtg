@@ -3,12 +3,14 @@ package main
 import (
     "fmt"
     "log"
-    "time"
+    "net/http"
 
     "github.com/gin-gonic/gin"
-    "github.com/jmoiron/sqlx"
+    "github.com/dgrijalva/jwt-go"
+    "github.com/golang-migrate/migrate/v4"
+    _ "github.com/golang-migrate/migrate/v4/database/postgres"
+    _ "github.com/golang-migrate/migrate/v4/source/file"
     _ "github.com/lib/pq"
-    "github.com/spf13/viper"
 
     "github.com/blagoweb/bbtg/internal/config"
     "github.com/blagoweb/bbtg/internal/db"
@@ -16,6 +18,87 @@ import (
     r2storage "github.com/blagoweb/bbtg/internal/storage/r2"
     "github.com/blagoweb/bbtg/internal/telegram"
 )
+
+// HandleLogin обрабатывает авторизацию через Telegram WebApp
+func HandleLogin(telegramToken, jwtSecret string) gin.HandlerFunc {
+    return func(c *gin.Context) {
+        var req struct {
+            InitData string `json:"initData" binding:"required"`
+        }
+        if err := c.ShouldBindJSON(&req); err != nil {
+            c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+            return
+        }
+
+        // Проверяем подпись данных от Telegram
+        data, err := telegram.CheckAuthData(req.InitData, telegramToken)
+        if err != nil {
+            c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid telegram data"})
+            return
+        }
+
+        // Генерируем JWT токен
+        token, err := telegram.GenerateJWT(data, jwtSecret)
+        if err != nil {
+            c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
+            return
+        }
+
+        c.JSON(http.StatusOK, gin.H{"token": token})
+    }
+}
+
+// AuthMiddleware проверяет JWT токен и добавляет user_id в контекст
+func AuthMiddleware(jwtSecret string) gin.HandlerFunc {
+    return func(c *gin.Context) {
+        authHeader := c.GetHeader("Authorization")
+        if authHeader == "" {
+            c.JSON(http.StatusUnauthorized, gin.H{"error": "no authorization header"})
+            c.Abort()
+            return
+        }
+
+        // Убираем "Bearer " префикс
+        tokenString := authHeader
+        if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
+            tokenString = authHeader[7:]
+        }
+
+        // Парсим JWT токен
+        token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+            if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+                return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+            }
+            return []byte(jwtSecret), nil
+        })
+
+        if err != nil || !token.Valid {
+            c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
+            c.Abort()
+            return
+        }
+
+        // Извлекаем user_id из токена
+        if claims, ok := token.Claims.(jwt.MapClaims); ok {
+            if userID, exists := claims["user_id"]; exists {
+                c.Set("user_id", fmt.Sprint(userID))
+                c.Next()
+                return
+            }
+        }
+
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token claims"})
+        c.Abort()
+    }
+}
+
+// WebhookHandler обрабатывает webhook от YooKassa
+func WebhookHandler(db interface{}, yookassaSecret string) gin.HandlerFunc {
+    return func(c *gin.Context) {
+        // TODO: Implement YooKassa webhook handling
+        c.JSON(http.StatusOK, gin.H{"status": "ok"})
+    }
+}
 
 func main() {
     // 1. Загрузить конфиг
@@ -50,14 +133,14 @@ func main() {
     // 6. Настроить Gin
     router := gin.Default()
     // Вебхук оплаты YooKassa
-    router.POST("/api/payment/webhook", payment.WebhookHandler(database, cfg.YookassaSecret))
+    router.POST("/api/payment/webhook", WebhookHandler(database, cfg.YookassaSecret))
 
     // Авторизация через Telegram WebApp
-    router.POST("/api/auth/login", handler.HandleLogin(cfg.TelegramToken, cfg.JWTSecret))
+    router.POST("/api/auth/login", HandleLogin(cfg.TelegramToken, cfg.JWTSecret))
 
     // Группа защищённых API-маршрутов
     api := router.Group("/api")
-    api.Use(handler.AuthMiddleware(cfg.JWTSecret))
+    api.Use(AuthMiddleware(cfg.JWTSecret))
     {
         // лендинги (CRUD + загрузка аватарки)
         handler.RegisterLandingRoutes       (api, database, r2client)
