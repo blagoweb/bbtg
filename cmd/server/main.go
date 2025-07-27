@@ -97,14 +97,6 @@ func AuthMiddleware(jwtSecret string) gin.HandlerFunc {
     }
 }
 
-// WebhookHandler обрабатывает webhook от YooKassa
-func WebhookHandler(db interface{}, yookassaSecret string) gin.HandlerFunc {
-    return func(c *gin.Context) {
-        // TODO: Implement YooKassa webhook handling
-        c.JSON(http.StatusOK, gin.H{"status": "ok"})
-    }
-}
-
 func main() {
     // 1. Конфиг
     cfg, err := config.Load()
