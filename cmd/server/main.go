@@ -113,6 +113,14 @@ func main() {
         corsOrigins = "*"
     }
 
+    // Логируем переменные окружения для отладки
+    log.Printf("Environment variables:")
+    log.Printf("  DB_DSN: %s", dbDSN)
+    log.Printf("  TELEGRAM_BOT_TOKEN: %s", telegramToken)
+    log.Printf("  JWT_SECRET: %s", jwtSecret)
+    log.Printf("  APP_PORT: %s", appPort)
+    log.Printf("  CORS_ORIGINS: %s", corsOrigins)
+
     // 2. База
     database, err := db.Connect(dbDSN)
     if err != nil {
