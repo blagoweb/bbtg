@@ -15,7 +15,7 @@ import (
     _ "github.com/golang-migrate/migrate/v4/source/file"
     _ "github.com/lib/pq"
 
-    "github.com/blagoweb/bbtg/internal/config"
+
     "github.com/blagoweb/bbtg/internal/db"
     "github.com/blagoweb/bbtg/internal/handler"
     r2storage "github.com/blagoweb/bbtg/internal/storage/r2"
@@ -97,22 +97,24 @@ func AuthMiddleware(jwtSecret string) gin.HandlerFunc {
 }
 
 func main() {
-    // 1. Конфиг
-    cfg, err := config.Load()
-    if err != nil {
-        log.Printf("config load error: %v", err)
-        // Устанавливаем значения по умолчанию для критических параметров
-        cfg = &config.Config{
-            AppPort:       "8080",
-            DB_DSN:        "",
-            TelegramToken: "",
-            JWTSecret:     "default-secret",
-            CORSOrigins:   []string{"*"},
-        }
+    // 1. Environment variables
+    dbDSN := os.Getenv("DB_DSN")
+    telegramToken := os.Getenv("TELEGRAM_TOKEN")
+    jwtSecret := os.Getenv("JWT_SECRET")
+    if jwtSecret == "" {
+        jwtSecret = "default-secret"
+    }
+    appPort := os.Getenv("APP_PORT")
+    if appPort == "" {
+        appPort = "8080"
+    }
+    corsOrigins := os.Getenv("CORS_ORIGINS")
+    if corsOrigins == "" {
+        corsOrigins = "*"
     }
 
     // 2. База
-    database, err := db.Connect(cfg.DB_DSN)
+    database, err := db.Connect(dbDSN)
     if err != nil {
         log.Printf("db connect error: %v", err)
         // Не прерываем выполнение, если БД недоступна
@@ -120,16 +122,20 @@ func main() {
     }
 
     // 3. Миграции (опционально)
-    if cfg.DB_DSN != "" {
-        if err := runMigrations(cfg.DB_DSN); err != nil {
+    if dbDSN != "" {
+        if err := runMigrations(dbDSN); err != nil {
             log.Printf("migrations warning: %v", err)
         }
     }
 
     // 4. R2
     var r2client *r2storage.Client
-    if cfg.R2Endpoint != "" && cfg.R2AccessKey != "" && cfg.R2SecretKey != "" && cfg.R2Bucket != "" {
-        r2client, err = r2storage.NewClient(cfg.R2Endpoint, cfg.R2AccessKey, cfg.R2SecretKey, cfg.R2Bucket)
+    r2Endpoint := os.Getenv("R2_ENDPOINT")
+    r2AccessKey := os.Getenv("R2_ACCESS_KEY")
+    r2SecretKey := os.Getenv("R2_SECRET_KEY")
+    r2Bucket := os.Getenv("R2_BUCKET")
+    if r2Endpoint != "" && r2AccessKey != "" && r2SecretKey != "" && r2Bucket != "" {
+        r2client, err = r2storage.NewClient(r2Endpoint, r2AccessKey, r2SecretKey, r2Bucket)
         if err != nil {
             log.Printf("r2 init error: %v", err)
             r2client = nil
@@ -141,8 +147,8 @@ func main() {
 
     // 5. Telegram Bot
     var tbot *telegram.Bot
-    if cfg.TelegramToken != "" {
-        tbot, err = telegram.NewBot(cfg.TelegramToken)
+    if telegramToken != "" {
+        tbot, err = telegram.NewBot(telegramToken)
         if err != nil {
             log.Printf("telegram bot init error: %v", err)
             tbot = nil
@@ -155,7 +161,7 @@ func main() {
     // 6. Gin + CORS
     router := gin.Default()
     router.Use(cors.New(cors.Config{
-        AllowOrigins:     cfg.CORSOrigins,
+        AllowOrigins:     []string{corsOrigins},
         AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
         AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
         ExposeHeaders:    []string{"Content-Length"},
@@ -167,23 +173,23 @@ func main() {
     router.GET("/health", func(c *gin.Context) {
         c.JSON(http.StatusOK, gin.H{"status": "ok", "timestamp": time.Now().Unix()})
     })
-    router.POST("/api/auth/login",      HandleLogin(cfg.TelegramToken, cfg.JWTSecret))
+    router.POST("/api/auth/login",      HandleLogin(telegramToken, jwtSecret))
 
     api := router.Group("/api")
-    api.Use(AuthMiddleware(cfg.JWTSecret))
+    api.Use(AuthMiddleware(jwtSecret))
     {
         handler.RegisterLandingRoutes      (api, database, r2client)
         handler.RegisterLinkRoutes         (api, database)
         handler.RegisterLeadRoutes         (api, database, tbot)
         handler.RegisterAnalyticsRoutes    (api, database)
         handler.RegisterPaymentRoutes      (api, database)
-        handler.RegisterSubscriptionRoutes (api, database, cfg)
+        handler.RegisterSubscriptionRoutes (api, database, nil)
     }
 
     // 8. Запуск на порту из окружения (Railway) или из конфигурации
     port := os.Getenv("PORT")
     if port == "" {
-        port = cfg.AppPort
+        port = appPort
     }
     addr := fmt.Sprintf(":%s", port)
     log.Printf("Server running on %s", addr)
