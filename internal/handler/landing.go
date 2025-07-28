@@ -35,19 +35,26 @@ func RegisterLandingRoutes(rg *gin.RouterGroup, db *sqlx.DB, _ *r2.Client) {
 // listLandings возвращает все лендинги пользователя
 func listLandings(db *sqlx.DB) gin.HandlerFunc {
     return func(c *gin.Context) {
-        uidI, exists := c.Get("user_id")
+        telegramIDI, exists := c.Get("telegram_id")
         if !exists {
-            c.JSON(http.StatusUnauthorized, gin.H{"error": "user_id not found"})
+            c.JSON(http.StatusUnauthorized, gin.H{"error": "telegram_id not found"})
             return
         }
-        uid, err := strconv.Atoi(fmt.Sprint(uidI))
+        telegramID, err := strconv.ParseInt(fmt.Sprint(telegramIDI), 10, 64)
         if err != nil {
-            c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid user_id"})
+            c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid telegram_id"})
+            return
+        }
+
+        // Сначала находим пользователя по telegram_id
+        var userID int
+        if err := db.Get(&userID, "SELECT id FROM users WHERE telegram_id=$1", telegramID); err != nil {
+            c.JSON(http.StatusUnauthorized, gin.H{"error": "user not found"})
             return
         }
 
         var items []Landing
-        if err := db.Select(&items, "SELECT * FROM landings WHERE user_id=$1 ORDER BY created_at DESC", uid); err != nil {
+        if err := db.Select(&items, "SELECT * FROM landings WHERE user_id=$1 ORDER BY created_at DESC", userID); err != nil {
             c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
             return
         }
@@ -63,14 +70,21 @@ func createLanding(db *sqlx.DB) gin.HandlerFunc {
         AvatarURL   string `json:"avatarUrl"`
     }
     return func(c *gin.Context) {
-        uidI, exists := c.Get("user_id")
+        telegramIDI, exists := c.Get("telegram_id")
         if !exists {
-            c.JSON(http.StatusUnauthorized, gin.H{"error": "user_id not found"})
+            c.JSON(http.StatusUnauthorized, gin.H{"error": "telegram_id not found"})
             return
         }
-        uid, err := strconv.Atoi(fmt.Sprint(uidI))
+        telegramID, err := strconv.ParseInt(fmt.Sprint(telegramIDI), 10, 64)
         if err != nil {
-            c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid user_id"})
+            c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid telegram_id"})
+            return
+        }
+
+        // Сначала находим пользователя по telegram_id
+        var userID int
+        if err := db.Get(&userID, "SELECT id FROM users WHERE telegram_id=$1", telegramID); err != nil {
+            c.JSON(http.StatusUnauthorized, gin.H{"error": "user not found"})
             return
         }
 
@@ -83,7 +97,7 @@ func createLanding(db *sqlx.DB) gin.HandlerFunc {
         var item Landing
         query := `INSERT INTO landings(user_id, title, description, avatar_url, created_at, updated_at)
                   VALUES($1,$2,$3,$4,NOW(),NOW()) RETURNING *`
-        if err := db.Get(&item, query, uid, req.Title, req.Description, req.AvatarURL); err != nil {
+        if err := db.Get(&item, query, userID, req.Title, req.Description, req.AvatarURL); err != nil {
             c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
             return
         }
