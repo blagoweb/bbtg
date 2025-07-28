@@ -99,7 +99,7 @@ func AuthMiddleware(jwtSecret string) gin.HandlerFunc {
 func main() {
     // 1. Environment variables
     dbDSN := os.Getenv("DB_DSN")
-    telegramToken := os.Getenv("TELEGRAM_TOKEN")
+    telegramToken := os.Getenv("TELEGRAM_BOT_TOKEN")
     jwtSecret := os.Getenv("JWT_SECRET")
     if jwtSecret == "" {
         jwtSecret = "default-secret"
