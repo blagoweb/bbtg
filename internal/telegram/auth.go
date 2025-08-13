@@ -21,6 +21,19 @@ type tgUser struct { // FIX: структура для user
 
 func CheckAuthData(initData string, botToken string) (map[string]string, error) {
     // ParseQuery сам сделает URL-decode каждой пары
+    
+    // Сначала разберем строку вручную, чтобы сохранить оригинальные значения
+    pairs := strings.Split(initData, "&")
+    originalVals := make(map[string]string)
+    for _, pair := range pairs {
+        if strings.Contains(pair, "=") {
+            parts := strings.SplitN(pair, "=", 2)
+            if len(parts) == 2 {
+                originalVals[parts[0]] = parts[1]
+            }
+        }
+    }
+    
     vals, err := url.ParseQuery(initData)
     if err != nil {
         return nil, err
@@ -44,10 +57,13 @@ func CheckAuthData(initData string, botToken string) (map[string]string, error) 
 
     var dataStrings []string
     for _, k := range keys {
-        // Важно: брать ровно то, что пришло (ParseQuery уже декодировал)
-        dataStrings = append(dataStrings, fmt.Sprintf("%s=%s", k, vals.Get(k)))
+        // Используем оригинальные URL-encoded значения для hash calculation
+        value := originalVals[k]
+        dataStrings = append(dataStrings, fmt.Sprintf("%s=%s", k, value))
     }
     dataCheckString := strings.Join(dataStrings, "\n")
+    
+
 
     // FIX: secret_key = HMAC_SHA256(botToken, key="WebAppData")
     secretMac := hmac.New(sha256.New, []byte("WebAppData"))
