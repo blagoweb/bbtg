@@ -205,11 +205,6 @@ func main() {
     // API эндпоинты с авторизацией
     api := router.Group("/api")
     
-    // Обработчик для OPTIONS запросов (CORS preflight)
-    api.OPTIONS("/*path", func(c *gin.Context) {
-        c.Status(http.StatusOK)
-    })
-    
     api.Use(AuthMiddleware(jwtSecret))
     {
         handler.RegisterLandingRoutes      (api, database, r2client)
