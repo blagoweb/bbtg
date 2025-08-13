@@ -21,16 +21,19 @@ func CheckAuthData(initData string, botToken string) (map[string]string, error) 
         return nil, err
     }
     
-    // Проверяем наличие hash
+    // Проверяем наличие hash или signature
     receivedHash := vals.Get("hash")
     if receivedHash == "" {
-        return nil, errors.New("missing hash in initData")
+        receivedHash = vals.Get("signature")
+        if receivedHash == "" {
+            return nil, errors.New("missing hash or signature in initData")
+        }
     }
     
     // Формируем data_check_string
     var keys []string
     for k := range vals {
-        if k == "hash" {
+        if k == "hash" || k == "signature" {
             continue
         }
         keys = append(keys, k)
@@ -51,6 +54,16 @@ func CheckAuthData(initData string, botToken string) (map[string]string, error) 
     expectedHash := hex.EncodeToString(mac.Sum(nil))
 
     if !hmac.Equal([]byte(expectedHash), []byte(receivedHash)) {
+        // Добавляем отладочную информацию
+        fmt.Printf("Debug info:\n")
+        fmt.Printf("  Data check string: %s\n", dataCheckString)
+        if len(botToken) > 10 {
+            fmt.Printf("  Bot token (first 10 chars): %s...\n", botToken[:10])
+        } else {
+            fmt.Printf("  Bot token: %s\n", botToken)
+        }
+        fmt.Printf("  Expected hash: %s\n", expectedHash)
+        fmt.Printf("  Received hash: %s\n", receivedHash)
         return nil, fmt.Errorf("hash mismatch: expected %s, received %s", expectedHash, receivedHash)
     }
 
