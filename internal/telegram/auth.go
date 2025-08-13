@@ -10,7 +10,6 @@ import (
     "net/url"
     "sort"
     "strings"
-    "time"
 )
 
 type tgUser struct { // FIX: структура для user
