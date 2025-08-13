@@ -20,6 +20,13 @@ func CheckAuthData(initData string, botToken string) (map[string]string, error) 
     if err != nil {
         return nil, err
     }
+    
+    // Проверяем наличие hash
+    receivedHash := vals.Get("hash")
+    if receivedHash == "" {
+        return nil, errors.New("missing hash in initData")
+    }
+    
     // Формируем data_check_string
     var keys []string
     for k := range vals {
@@ -43,9 +50,8 @@ func CheckAuthData(initData string, botToken string) (map[string]string, error) 
     mac.Write([]byte(dataCheckString))
     expectedHash := hex.EncodeToString(mac.Sum(nil))
 
-    receivedHash := vals.Get("hash")
     if !hmac.Equal([]byte(expectedHash), []byte(receivedHash)) {
-        return nil, errors.New("invalid data hash")
+        return nil, fmt.Errorf("hash mismatch: expected %s, received %s", expectedHash, receivedHash)
     }
 
     // Собираем результат в map

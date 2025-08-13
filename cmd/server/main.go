@@ -29,6 +29,7 @@ func HandleLogin(telegramToken, jwtSecret string) gin.HandlerFunc {
             InitData string `json:"initData" binding:"required"`
         }
         if err := c.ShouldBindJSON(&req); err != nil {
+            log.Printf("Login request binding error: %v", err)
             c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
             return
         }
@@ -36,6 +37,9 @@ func HandleLogin(telegramToken, jwtSecret string) gin.HandlerFunc {
         // Проверяем подпись данных от Telegram
         data, err := telegram.CheckAuthData(req.InitData, telegramToken)
         if err != nil {
+            log.Printf("Telegram auth data validation failed: %v", err)
+            log.Printf("InitData received: %s", req.InitData)
+            log.Printf("Telegram token configured: %s", telegramToken)
             c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid telegram data"})
             return
         }
@@ -43,10 +47,12 @@ func HandleLogin(telegramToken, jwtSecret string) gin.HandlerFunc {
         // Генерируем JWT токен
         token, err := telegram.GenerateJWT(data, jwtSecret)
         if err != nil {
+            log.Printf("JWT generation failed: %v", err)
             c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
             return
         }
 
+        log.Printf("Login successful for user: %s", data["user_id"])
         c.JSON(http.StatusOK, gin.H{"token": token})
     }
 }
