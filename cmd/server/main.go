@@ -170,20 +170,35 @@ func main() {
     router := gin.Default()
     router.Use(cors.New(cors.Config{
         AllowOrigins:     []string{corsOrigins},
-        AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-        AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
-        ExposeHeaders:    []string{"Content-Length"},
+        AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
+        AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "Accept", "X-Requested-With"},
+        ExposeHeaders:    []string{"Content-Length", "Content-Type"},
         AllowCredentials: true,
         MaxAge:           12 * time.Hour,
     }))
+    
+    // Логирование всех запросов для отладки
+    router.Use(func(c *gin.Context) {
+        log.Printf("Request: %s %s from %s", c.Request.Method, c.Request.URL.Path, c.Request.Header.Get("Origin"))
+        c.Next()
+    })
 
     // 7. Routes
     router.GET("/health", func(c *gin.Context) {
         c.JSON(http.StatusOK, gin.H{"status": "ok", "timestamp": time.Now().Unix()})
     })
-    router.POST("/api/auth/login",      HandleLogin(telegramToken, jwtSecret))
+    
+    // Эндпоинты авторизации (БЕЗ AuthMiddleware)
+    router.POST("/api/auth/login", HandleLogin(telegramToken, jwtSecret))
 
+    // API эндпоинты с авторизацией
     api := router.Group("/api")
+    
+    // Обработчик для OPTIONS запросов (CORS preflight)
+    api.OPTIONS("/*path", func(c *gin.Context) {
+        c.Status(http.StatusOK)
+    })
+    
     api.Use(AuthMiddleware(jwtSecret))
     {
         handler.RegisterLandingRoutes      (api, database, r2client)
