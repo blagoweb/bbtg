@@ -4,57 +4,63 @@ import (
     "crypto/hmac"
     "crypto/sha256"
     "encoding/hex"
+    "encoding/json" // FIX: для парсинга user
     "errors"
     "fmt"
-    "github.com/dgrijalva/jwt-go"
     "net/url"
     "sort"
     "strings"
     "time"
 )
 
-// CheckAuthData проверяет подпись initData из Telegram WebApp
+type tgUser struct { // FIX: структура для user
+    ID        int64  `json:"id"`
+    Username  string `json:"username"`
+    FirstName string `json:"first_name"`
+    LastName  string `json:"last_name"`
+}
+
 func CheckAuthData(initData string, botToken string) (map[string]string, error) {
-    // Парсим строку вида "key1=value1&key2=value2..."
+    // ParseQuery сам сделает URL-decode каждой пары
     vals, err := url.ParseQuery(initData)
     if err != nil {
         return nil, err
     }
-    
-    // Проверяем наличие hash или signature
-    receivedHash := vals.Get("hash")
+
+    // Берём hash (а signature игнорируем по спекам)
+    receivedHash := strings.ToLower(vals.Get("hash")) // FIX: lower
     if receivedHash == "" {
-        receivedHash = vals.Get("signature")
-        if receivedHash == "" {
-            return nil, errors.New("missing hash or signature in initData")
-        }
+        return nil, errors.New("missing hash in initData")
     }
-    
-    // Формируем data_check_string
+
+    // Собираем пары без hash и signature
     var keys []string
     for k := range vals {
-        if k == "hash" || k == "signature" {
+        if k == "hash" || k == "signature" { // FIX: signature исключаем
             continue
         }
         keys = append(keys, k)
     }
     sort.Strings(keys)
+
     var dataStrings []string
     for _, k := range keys {
+        // Важно: брать ровно то, что пришло (ParseQuery уже декодировал)
         dataStrings = append(dataStrings, fmt.Sprintf("%s=%s", k, vals.Get(k)))
     }
     dataCheckString := strings.Join(dataStrings, "\n")
 
-    // Вычисляем секретный ключ как HMAC-SHA256 от botToken
-    secretKey := sha256.Sum256([]byte(botToken))
+    // FIX: secret_key = HMAC_SHA256(botToken, key="WebAppData")
+    secretMac := hmac.New(sha256.New, []byte("WebAppData"))
+    secretMac.Write([]byte(botToken))
+    secretKey := secretMac.Sum(nil)
 
-    // Считаем HMAC от строки данных
-    mac := hmac.New(sha256.New, secretKey[:])
+    // calc_hash = HMAC_SHA256(data_check_string, key=secret_key)
+    mac := hmac.New(sha256.New, secretKey)
     mac.Write([]byte(dataCheckString))
-    expectedHash := hex.EncodeToString(mac.Sum(nil))
+    expectedHash := strings.ToLower(hex.EncodeToString(mac.Sum(nil))) // FIX: lower
 
     if !hmac.Equal([]byte(expectedHash), []byte(receivedHash)) {
-        // Добавляем отладочную информацию
         fmt.Printf("Debug info:\n")
         fmt.Printf("  Data check string: %s\n", dataCheckString)
         if len(botToken) > 10 {
@@ -67,24 +73,24 @@ func CheckAuthData(initData string, botToken string) (map[string]string, error) 
         return nil, fmt.Errorf("hash mismatch: expected %s, received %s", expectedHash, receivedHash)
     }
 
-    // Собираем результат в map
-    result := make(map[string]string)
+    // Готовим результат
+    result := make(map[string]string, len(keys)+2)
     for _, k := range keys {
         result[k] = vals.Get(k)
     }
-    return result, nil
-}
 
-// GenerateJWT создаёт JWT-токен с user_id и username из данных Telegram
-func GenerateJWT(data map[string]string, jwtSecret string) (string, error) {
-    userID := data["user_id"]
-    username := data["username"]
-
-    claims := jwt.MapClaims{
-        "user_id":  userID,
-        "username": username,
-        "exp":      time.Now().Add(24 * time.Hour).Unix(),
+    // FIX: распарсим user и положим user_id/username для GenerateJWT
+    if userRaw := vals.Get("user"); userRaw != "" {
+        var u tgUser
+        if err := json.Unmarshal([]byte(userRaw), &u); err == nil {
+            result["user_id"] = fmt.Sprint(u.ID)
+            if u.Username != "" {
+                result["username"] = u.Username
+            } else if fn := strings.TrimSpace(u.FirstName + " " + u.LastName); fn != "" {
+                result["username"] = fn
+            }
+        }
     }
-    token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-    return token.SignedString([]byte(jwtSecret))
+
+    return result, nil
 }
