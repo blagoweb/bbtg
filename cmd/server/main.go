@@ -108,10 +108,7 @@ func main() {
     if appPort == "" {
         appPort = "8080"
     }
-    corsOrigins := os.Getenv("CORS_ORIGINS")
-    if corsOrigins == "" {
-        corsOrigins = "*"
-    }
+    corsOrigins := "*"
 
     // Логируем переменные окружения для отладки
     log.Printf("Environment variables:")
@@ -168,8 +165,16 @@ func main() {
 
     // 6. Gin + CORS
     router := gin.Default()
+    
+    // Расширяем CORS origins для Railway
+    corsOriginsList := []string{corsOrigins}
+    if corsOrigins != "*" {
+        // Добавляем дополнительные origins для отладки
+        corsOriginsList = append(corsOriginsList, "*")
+    }
+    
     router.Use(cors.New(cors.Config{
-        AllowOrigins:     []string{corsOrigins},
+        AllowOrigins:     corsOriginsList,
         AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
         AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "Accept", "X-Requested-With"},
         ExposeHeaders:    []string{"Content-Length", "Content-Type"},
@@ -181,6 +186,12 @@ func main() {
     router.Use(func(c *gin.Context) {
         log.Printf("Request: %s %s from %s", c.Request.Method, c.Request.URL.Path, c.Request.Header.Get("Origin"))
         c.Next()
+    })
+
+    // Глобальный обработчик для OPTIONS запросов
+    router.OPTIONS("/*path", func(c *gin.Context) {
+        log.Printf("Global OPTIONS handler for: %s", c.Request.URL.Path)
+        c.Status(http.StatusOK)
     })
 
     // 7. Routes
